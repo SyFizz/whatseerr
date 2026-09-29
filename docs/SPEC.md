@@ -13,7 +13,7 @@ a requested movie or series as **available**.
 | Topic              | Decision                                                                                                                                                                                |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WhatsApp transport | [Baileys](https://github.com/WhiskeySockets/Baileys) embedded in the app (WhatsApp Web multi-device protocol). A **dedicated phone number** is recommended (unofficial API → ban risk). |
-| Stack              | TypeScript (strict, ESM) on Node.js 24 LTS · Fastify 5 · Zod 4 · Pino · Vitest                                                                                                          |
+| Stack              | TypeScript (strict, ESM) on Node.js 26 · Fastify 5 · Zod 4 · Pino · Vitest                                                                                                              |
 | Triggering events  | `MEDIA_AVAILABLE` only. `TEST_NOTIFICATION` is also answered so the Seerr "Test" button works. Every other type is acknowledged (`202`) and ignored.                                    |
 | Message format     | TMDB poster image + caption: heading (movie / series), bold title with year, extras (e.g. requested seasons), italic overview (truncated), requester.                                   |
 | Target             | A single group, identified by its JID (`…@g.us`) in `WHATSAPP_GROUP_JID`.                                                                                                               |

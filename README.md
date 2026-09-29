@@ -51,7 +51,7 @@ Use the **Test** button to check the connection: a test message is sent to the g
 
 ## Development
 
-Requires Node.js 24+.
+Requires Node.js 26+.
 
 ```bash
 npm ci

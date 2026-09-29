@@ -10,7 +10,7 @@
     "url": "git+https://github.com/SyFizz/whatseerr.git"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=26"
   },
   "main": "dist/index.js",
   "scripts": {
