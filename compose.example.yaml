@@ -1,0 +1,17 @@
+# Example deployment. Copy to compose.yaml, create `.env` from `.env.example`, then:
+#   docker compose up -d && docker compose logs -f whatseerr
+services:
+  whatseerr:
+    image: ghcr.io/syfizz/whatseerr:latest
+    container_name: whatseerr
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # WhatsApp session (keep it private: it grants full access to the account)
+      - whatseerr-data:/data
+    # Only needed if Seerr is not on the same Docker network:
+    # ports:
+    #   - "8080:8080"
+
+volumes:
+  whatseerr-data:
