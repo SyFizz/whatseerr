@@ -8,8 +8,12 @@ Guidance for Claude Code when working in this repository.
 media becomes available. Scope, decisions and roadmap: [docs/SPEC.md](docs/SPEC.md). Read it
 before starting a feature, and update it in the same commit when a decision changes.
 
-Current status: milestones **M1** (harness), **M2** (WhatsApp delivery via Baileys), **M3**
-(group discovery) and **M4** (durable queue, dedup, throttling) done. Next: **M5** (release). Check the milestone list in the spec before starting.
+Current status: **v1.0.0** released, milestones M1–M5 done (see the spec). New work is driven by
+the user's requests; record new decisions in the spec.
+
+Releases follow [SemVer](https://semver.org/): bump `version` in `package.json` in a
+`chore(release): vX.Y.Z` commit, then tag `vX.Y.Z` and create the GitHub release
+(`gh release create vX.Y.Z --generate-notes`). `feat` → minor, `fix` → patch, `!` → major.
 
 ## Non-negotiable rules
 

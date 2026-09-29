@@ -85,8 +85,8 @@ Realistic samples live in [`test/fixtures/seerr/`](../test/fixtures/seerr/).
     Seerr sends one `MEDIA_AVAILABLE` per request. Window `DEDUP_WINDOW_MINUTES` (default 6 h),
     persisted with the queue.
   - `TEST_NOTIFICATION` bypasses the queue so the Seerr Test button reflects WhatsApp health.
-- [ ] **M5 – Release**: user documentation (Seerr setup, pairing walkthrough), first `v1.0.0`
-      tag.
+- [x] **M5 – Release**: user documentation in the README (installation walkthrough, Seerr setup,
+      troubleshooting, updating), first `v1.0.0` tag and GitHub release.
 
 ## Out of scope (for now)
 
