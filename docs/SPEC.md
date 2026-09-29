@@ -10,17 +10,17 @@ a requested movie or series as **available**.
 
 ## Decisions
 
-| Topic              | Decision                                                                                                                                                                                |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WhatsApp transport | [Baileys](https://github.com/WhiskeySockets/Baileys) embedded in the app (WhatsApp Web multi-device protocol). A **dedicated phone number** is recommended (unofficial API → ban risk). |
-| Stack              | TypeScript (strict, ESM) on Node.js 26 · Fastify 5 · Zod 4 · Pino · Vitest                                                                                                              |
-| Triggering events  | `MEDIA_AVAILABLE` only. `TEST_NOTIFICATION` is also answered so the Seerr "Test" button works. Every other type is acknowledged (`202`) and ignored.                                    |
-| Message format     | TMDB poster image + caption: heading (movie / series), bold title with year, extras (e.g. requested seasons), italic overview (truncated), requester.                                   |
-| Target             | A single group, identified by its JID (`…@g.us`) in `WHATSAPP_GROUP_JID`.                                                                                                               |
-| Pairing            | QR code printed in the container logs (`docker logs`). Optional pairing-code flow via `WHATSAPP_PAIRING_PHONE`. Session persisted in the `/data` volume.                                |
-| Language           | i18n FR + EN, chosen with `LANGUAGE` (default `fr`).                                                                                                                                    |
-| Webhook security   | Seerr sends `Authorization: Bearer <WEBHOOK_SECRET>`; compared in constant time.                                                                                                        |
-| Distribution       | Docker image on GHCR (`ghcr.io/syfizz/whatseerr`), multi-arch `linux/amd64` + `linux/arm64`, built by GitHub Actions. Tags: `latest` (main), semver (git tags `vX.Y.Z`), short SHA.     |
+| Topic              | Decision                                                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WhatsApp transport | [Baileys](https://github.com/WhiskeySockets/Baileys) embedded in the app (WhatsApp Web multi-device protocol). A **dedicated phone number** is recommended (unofficial API → ban risk).                       |
+| Stack              | TypeScript (strict, ESM) on Node.js 26 · Fastify 5 · Zod 4 · Pino · Vitest                                                                                                                                    |
+| Triggering events  | `MEDIA_AVAILABLE` only. `TEST_NOTIFICATION` is also answered so the Seerr "Test" button works. Every other type is acknowledged (`202`) and ignored.                                                          |
+| Message format     | TMDB poster image + caption: heading (movie / series), bold title with year, extras (e.g. requested seasons), italic overview (whole sentences up to `OVERVIEW_MAX_LENGTH`, 200 chars by default), requester. |
+| Target             | A single group, identified by its JID (`…@g.us`) in `WHATSAPP_GROUP_JID`.                                                                                                                                     |
+| Pairing            | QR code printed in the container logs (`docker logs`). Optional pairing-code flow via `WHATSAPP_PAIRING_PHONE`. Session persisted in the `/data` volume.                                                      |
+| Language           | i18n FR + EN, chosen with `LANGUAGE` (default `fr`).                                                                                                                                                          |
+| Webhook security   | Seerr sends `Authorization: Bearer <WEBHOOK_SECRET>`; compared in constant time.                                                                                                                              |
+| Distribution       | Docker image on GHCR (`ghcr.io/syfizz/whatseerr`), multi-arch `linux/amd64` + `linux/arm64`, built by GitHub Actions. Tags: `latest` (main), semver (git tags `vX.Y.Z`), short SHA.                           |
 
 ## Architecture
 

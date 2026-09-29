@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_OVERVIEW_MAX_LENGTH } from './notifications/format.js';
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
@@ -26,6 +27,9 @@ const envSchema = z.object({
   DEDUP_WINDOW_MINUTES: optionalString(z.coerce.number().min(0)).default(360),
   QUEUE_MAX_AGE_HOURS: optionalString(z.coerce.number().positive()).default(24),
   SEND_INTERVAL_SECONDS: optionalString(z.coerce.number().min(0)).default(5),
+  OVERVIEW_MAX_LENGTH: optionalString(z.coerce.number().int().min(0)).default(
+    DEFAULT_OVERVIEW_MAX_LENGTH,
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -41,6 +45,8 @@ export interface Config {
   /** When true, messages are logged instead of being sent to WhatsApp. */
   dryRun: boolean;
   language: Env['LANGUAGE'];
+  /** Maximum synopsis length in messages; 0 hides it. */
+  overviewMaxLength: number;
   host: string;
   port: number;
   logLevel: Env['LOG_LEVEL'];
@@ -78,6 +84,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     dryRun: e.DRY_RUN,
     language: e.LANGUAGE,
+    overviewMaxLength: e.OVERVIEW_MAX_LENGTH,
     host: e.HOST,
     port: e.PORT,
     logLevel: e.LOG_LEVEL,

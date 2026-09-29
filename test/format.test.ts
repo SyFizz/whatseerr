@@ -33,11 +33,25 @@ describe('formatNotification', () => {
     expect(formatNotification(payload('media-pending'), fr)).toBeNull();
   });
 
-  it('truncates long overviews', () => {
+  it('shortens long overviews to the configured length', () => {
     const base = payload('media-available-movie');
-    const message = formatNotification({ ...base, message: 'x'.repeat(1000) }, fr);
-    expect(message?.text).toMatch(/x…_/);
-    expect(message?.text.length).toBeLessThan(600);
+    const long = { ...base, message: 'word '.repeat(200) };
+    const overview = (text: string | undefined) => /\n_(.*)_\n/.exec(text ?? '')?.[1] ?? '';
+
+    const byDefault = overview(formatNotification(long, fr)?.text);
+    expect(byDefault.length).toBeLessThanOrEqual(200);
+    expect(byDefault).toMatch(/word…$/);
+
+    const custom = overview(formatNotification(long, fr, { overviewMaxLength: 50 })?.text);
+    expect(custom.length).toBeLessThanOrEqual(50);
+  });
+
+  it('hides the overview when the maximum length is 0', () => {
+    const message = formatNotification(payload('media-available-movie'), fr, {
+      overviewMaxLength: 0,
+    });
+    expect(message?.text).not.toContain('Cobb');
+    expect(message?.text).toContain('Demandé par alice');
   });
 
   it('drops non-http image URLs', () => {

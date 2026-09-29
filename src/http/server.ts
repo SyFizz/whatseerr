@@ -3,7 +3,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import type { Messages } from '../i18n/index.js';
 import type { Logger } from '../logger.js';
 import { dedupKey } from '../notifications/dedup.js';
-import { formatNotification } from '../notifications/format.js';
+import { formatNotification, type FormatOptions } from '../notifications/format.js';
 import type { OutboxLike } from '../notifications/outbox.js';
 import { NotificationType, seerrPayloadSchema } from '../seerr/payload.js';
 import type { GroupSummary } from '../whatsapp/groups.js';
@@ -12,6 +12,7 @@ import { NotifierUnavailableError, type Notifier } from '../whatsapp/notifier.js
 export interface ServerDeps {
   webhookSecret: string;
   messages: Messages;
+  format?: FormatOptions;
   notifier: Notifier;
   /** Durable queue used for media notifications. */
   outbox: OutboxLike;
@@ -66,7 +67,7 @@ export function buildServer(deps: ServerDeps) {
       return reply.code(400).send({ error: 'invalid payload' });
     }
 
-    const message = formatNotification(parsed.data, deps.messages);
+    const message = formatNotification(parsed.data, deps.messages, deps.format);
     if (!message) {
       request.log.debug({ type: parsed.data.notification_type }, 'Notification type ignored');
       return reply.code(202).send({ status: 'ignored' });

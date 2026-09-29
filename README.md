@@ -51,6 +51,7 @@ Use the **Test** button to check the connection: a test message is sent to the g
 | `DEDUP_WINDOW_MINUTES`   | no       | `360`   | Announce the same media once within this window (`0`: off)   |
 | `QUEUE_MAX_AGE_HOURS`    | no       | `24`    | Drop queued messages not delivered within this delay         |
 | `SEND_INTERVAL_SECONDS`  | no       | `5`     | Minimum delay between two WhatsApp messages                  |
+| `OVERVIEW_MAX_LENGTH`    | no       | `200`   | Synopsis length in characters, whole sentences (`0`: hidden) |
 
 \* Needed to deliver messages; can be left empty for the first start while pairing.
 

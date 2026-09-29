@@ -7,11 +7,38 @@ export interface OutgoingMessage {
   imageUrl?: string | undefined;
 }
 
-const MAX_OVERVIEW_LENGTH = 400;
+export interface FormatOptions {
+  /** Maximum synopsis length in characters; 0 hides the synopsis. */
+  overviewMaxLength?: number;
+}
 
-function truncate(value: string, max: number): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1).trimEnd()}…`;
+export const DEFAULT_OVERVIEW_MAX_LENGTH = 200;
+
+/** Sentences, keeping their final punctuation and closing quotes. */
+const SENTENCE = /[^.!?…]+(?:[.!?…]+["'»”)\]]*|$)/g;
+
+/**
+ * Shortens a synopsis to at most `max` characters, preferring whole sentences.
+ * Falls back to a cut at a word boundary when the sentences kept would be too short
+ * (a long first sentence, or an abbreviation such as "Dr." mistaken for a sentence end).
+ */
+export function shortenOverview(overview: string, max: number): string {
+  const text = overview.replace(/\s+/g, ' ').trim();
+  if (max <= 0) return '';
+  if (text.length <= max) return text;
+
+  let kept = '';
+  for (const sentence of text.match(SENTENCE) ?? []) {
+    const candidate = `${kept} ${sentence.trim()}`.trim();
+    if (candidate.length > max) break;
+    kept = candidate;
+  }
+  if (kept.length >= max / 3) return kept;
+
+  const cut = text.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(' ');
+  const words = lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut;
+  return `${words.replace(/[\s,;:.–-]+$/, '')}…`;
 }
 
 function isHttpUrl(value: string | undefined): value is string {
@@ -35,7 +62,11 @@ function heading(payload: SeerrPayload, messages: Messages): string {
   }
 }
 
-function formatMediaAvailable(payload: SeerrPayload, messages: Messages): OutgoingMessage {
+function formatMediaAvailable(
+  payload: SeerrPayload,
+  messages: Messages,
+  overviewMaxLength: number,
+): OutgoingMessage {
   const lines = [heading(payload, messages)];
   if (payload.subject) lines.push('', `*${payload.subject.trim()}*`);
 
@@ -43,8 +74,8 @@ function formatMediaAvailable(payload: SeerrPayload, messages: Messages): Outgoi
     if (value.trim()) lines.push(`${name}: ${value.trim()}`);
   }
 
-  const overview = payload.message?.trim();
-  if (overview) lines.push('', `_${truncate(overview, MAX_OVERVIEW_LENGTH)}_`);
+  const overview = shortenOverview(payload.message ?? '', overviewMaxLength);
+  if (overview) lines.push('', `_${overview}_`);
 
   const username = payload.request?.requestedBy_username?.trim();
   if (username) lines.push('', messages.requestedBy(username));
@@ -61,10 +92,15 @@ function formatMediaAvailable(payload: SeerrPayload, messages: Messages): Outgoi
 export function formatNotification(
   payload: SeerrPayload,
   messages: Messages,
+  options: FormatOptions = {},
 ): OutgoingMessage | null {
   switch (payload.notification_type) {
     case NotificationType.MediaAvailable:
-      return formatMediaAvailable(payload, messages);
+      return formatMediaAvailable(
+        payload,
+        messages,
+        options.overviewMaxLength ?? DEFAULT_OVERVIEW_MAX_LENGTH,
+      );
     case NotificationType.TestNotification:
       return { text: messages.testNotification };
     default:

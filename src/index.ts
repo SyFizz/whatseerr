@@ -74,6 +74,7 @@ async function main(): Promise<void> {
   const server = buildServer({
     webhookSecret: config.webhookSecret,
     messages: getMessages(config.language),
+    format: { overviewMaxLength: config.overviewMaxLength },
     notifier,
     outbox,
     listGroups,
