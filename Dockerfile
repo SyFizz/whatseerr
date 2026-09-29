@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build: compile TypeScript once, on the build host's native platform ----
-FROM --platform=$BUILDPLATFORM node:24-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -10,13 +10,13 @@ COPY src ./src
 RUN npm run build
 
 # ---- Production dependencies, installed for the target platform ----
-FROM node:24-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # ---- Runtime ----
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 LABEL org.opencontainers.image.source="https://github.com/SyFizz/whatseerr" \
       org.opencontainers.image.description="Send Seerr (Jellyseerr) media notifications to a WhatsApp group" \
       org.opencontainers.image.licenses="GPL-3.0-only"
