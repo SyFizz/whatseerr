@@ -1,0 +1,25 @@
+{
+  "notification_type": "MEDIA_PENDING",
+  "event": "New Movie Request",
+  "subject": "Dune: Part Two (2024)",
+  "message": "Follow the mythic journey of Paul Atreides as he unites with Chani and the Fremen.",
+  "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
+  "media": {
+    "media_type": "movie",
+    "tmdbId": "693134",
+    "tvdbId": "",
+    "status": "PENDING",
+    "status4k": "UNKNOWN"
+  },
+  "request": {
+    "request_id": "44",
+    "requestedBy_email": "carol@example.com",
+    "requestedBy_username": "carol",
+    "requestedBy_avatar": "",
+    "requestedBy_settings_discordId": "",
+    "requestedBy_settings_telegramChatId": ""
+  },
+  "issue": null,
+  "comment": null,
+  "extra": []
+}

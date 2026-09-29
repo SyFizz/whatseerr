@@ -1,0 +1,25 @@
+{
+  "notification_type": "MEDIA_AVAILABLE",
+  "event": "Movie Request Now Available",
+  "subject": "Inception (2010)",
+  "message": "Cobb, a skilled thief who commits corporate espionage by infiltrating the subconscious of his targets, is offered a chance to regain his old life as payment for a task considered to be impossible.",
+  "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+  "media": {
+    "media_type": "movie",
+    "tmdbId": "27205",
+    "tvdbId": "",
+    "status": "AVAILABLE",
+    "status4k": "UNKNOWN"
+  },
+  "request": {
+    "request_id": "42",
+    "requestedBy_email": "alice@example.com",
+    "requestedBy_username": "alice",
+    "requestedBy_avatar": "/avatarproxy/1234",
+    "requestedBy_settings_discordId": "",
+    "requestedBy_settings_telegramChatId": ""
+  },
+  "issue": null,
+  "comment": null,
+  "extra": []
+}

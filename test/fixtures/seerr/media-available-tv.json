@@ -1,0 +1,25 @@
+{
+  "notification_type": "MEDIA_AVAILABLE",
+  "event": "Series Request Now Available",
+  "subject": "Severance (2022)",
+  "message": "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.",
+  "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg",
+  "media": {
+    "media_type": "tv",
+    "tmdbId": "95396",
+    "tvdbId": "371980",
+    "status": "PARTIALLY_AVAILABLE",
+    "status4k": "UNKNOWN"
+  },
+  "request": {
+    "request_id": "43",
+    "requestedBy_email": "bob@example.com",
+    "requestedBy_username": "bob",
+    "requestedBy_avatar": "/avatarproxy/5678",
+    "requestedBy_settings_discordId": "",
+    "requestedBy_settings_telegramChatId": ""
+  },
+  "issue": null,
+  "comment": null,
+  "extra": [{ "name": "Requested Seasons", "value": "1, 2" }]
+}
