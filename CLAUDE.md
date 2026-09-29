@@ -8,8 +8,8 @@ Guidance for Claude Code when working in this repository.
 media becomes available. Scope, decisions and roadmap: [docs/SPEC.md](docs/SPEC.md). Read it
 before starting a feature, and update it in the same commit when a decision changes.
 
-Current status: milestone **M1 (harness)** done. WhatsApp delivery uses a log-only placeholder
-(`LogNotifier`) until **M2** (Baileys) is implemented.
+Current status: milestones **M1 (harness)** and **M2 (WhatsApp delivery via Baileys)** done.
+Next: **M3** (group discovery). Check the milestone list in the spec before starting.
 
 ## Non-negotiable rules
 
@@ -58,7 +58,12 @@ src/
   seerr/payload.ts         Zod schema of the Seerr webhook payload
   notifications/format.ts  pure payload → OutgoingMessage mapping
   i18n/index.ts            FR/EN message catalog
-  whatsapp/notifier.ts     Notifier interface (+ LogNotifier placeholder)
+  whatsapp/notifier.ts     Notifier interface + LogNotifier (DRY_RUN)
+  whatsapp/baileys-notifier.ts  sends to the group through the connection (poster or text)
+  whatsapp/connection.ts   socket lifecycle: QR/pairing code, reconnect, session reset
+  whatsapp/policy.ts       pure disconnect → action mapping and backoff
+  whatsapp/socket.ts       real Baileys socket factory and auth-state storage
+  whatsapp/image.ts        poster download (timeout, size cap)
 test/
   *.test.ts                Vitest tests
   fixtures/seerr/*.json    realistic Seerr payloads (fake data)
@@ -85,8 +90,9 @@ docs/SPEC.md               scope, decisions, milestones
   `Notifier` (see `test/server.test.ts`), never with a real WhatsApp connection.
 - New Seerr payload shapes → add a fixture in `test/fixtures/seerr/` and register its name in
   `test/fixtures/index.ts`.
-- Baileys code (M2): isolate the socket behind small functions so reconnection, message building
-  and group listing can be unit-tested with a mocked socket.
+- WhatsApp code is tested without network: `WhatsAppConnection` takes injectable `createSocket`,
+  `loadAuth`, `clearAuth` and `print`; `test/whatsapp-connection.test.ts` drives a `FakeSocket`
+  (an `EventEmitter` emitting `connection.update`) with Vitest fake timers. Reuse that pattern.
 
 ## Seerr notes
 
@@ -95,15 +101,23 @@ docs/SPEC.md               scope, decisions, milestones
 - All templated values are strings; `media`, `request`, `extra` can be `null`.
 - The "Test" button sends `TEST_NOTIFICATION`, which is forwarded as a test message on purpose.
 
-## Baileys notes (for M2)
+## Baileys notes
 
-- Package `baileys` (v7, ESM). Pin the exact version: the v7 line is still in release candidate
-  and breaking changes are frequent.
-- Store auth state in `config.dataDir` (`useMultiFileAuthState`). This directory is equivalent to
-  a password: git-ignored, Docker volume, never logged.
-- Handle `connection.update`: render the QR (`qr` field) in the logs, reconnect on transient
-  disconnects with backoff, and on `DisconnectReason.loggedOut` clear the session and re-pair.
+- Package `baileys` (v7, ESM), pinned to an exact version: the v7 line is still in release
+  candidate and breaking changes are frequent. Read the changelog and rerun a real pairing before
+  bumping it (Dependabot PRs for `baileys` must not be merged blindly).
+- Auth state lives in `<DATA_DIR>/auth` (`useMultiFileAuthState` + `makeCacheableSignalKeyStore`).
+  This directory is equivalent to a password: git-ignored, Docker volume, never logged.
+- Never call `socket.logout()` on shutdown: it unlinks the device. Use `socket.end()`.
+- Only one process may use a session: a second socket with the same credentials kicks the first
+  (`connectionReplaced`). Never open a second connection (e.g. from a CLI) next to the server.
+- Do not disable history sync entirely (`shouldSyncHistoryMessage: () => false`): Baileys needs
+  the initial sync for LID mappings, otherwise sessions become unstable.
+- QR and pairing codes are written raw to stdout (`print`), not through pino, so they stay
+  readable in `docker logs`.
+- `WHATSAPP_LOG_LEVEL` defaults to `warn`; `debug`/`trace` may log session material.
 - Keep the message rate low (one message per event) to limit ban risk.
+- Poster thumbnails use `sharp` (a required peer of Baileys, prebuilt for musl on amd64/arm64).
 
 ## Docker & CI/CD
 

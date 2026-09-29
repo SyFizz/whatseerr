@@ -20,13 +20,15 @@ describe('isAuthorized', () => {
 describe('HTTP server', () => {
   let app: App;
   let send: ReturnType<typeof vi.fn<Notifier['send']>>;
+  let getStatus: ReturnType<typeof vi.fn<Notifier['getStatus']>>;
 
   beforeEach(() => {
     send = vi.fn<Notifier['send']>().mockResolvedValue(undefined);
+    getStatus = vi.fn<Notifier['getStatus']>().mockReturnValue({ ready: true, state: 'open' });
     app = buildServer({
       webhookSecret: SECRET,
       messages: getMessages('fr'),
-      notifier: { send, close: () => Promise.resolve() },
+      notifier: { send, getStatus, close: () => Promise.resolve() },
       logger: createLogger('silent'),
     });
   });
@@ -39,6 +41,16 @@ describe('HTTP server', () => {
     const res = await app.inject({ method: 'GET', url: '/healthz' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: 'ok' });
+  });
+
+  it('reports readiness from the notifier', async () => {
+    const ready = await app.inject({ method: 'GET', url: '/readyz' });
+    expect(ready.statusCode).toBe(200);
+
+    getStatus.mockReturnValue({ ready: false, state: 'waiting-for-pairing' });
+    const notReady = await app.inject({ method: 'GET', url: '/readyz' });
+    expect(notReady.statusCode).toBe(503);
+    expect(notReady.json()).toEqual({ ready: false, state: 'waiting-for-pairing' });
   });
 
   it('rejects unauthenticated webhooks', async () => {

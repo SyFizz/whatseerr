@@ -56,13 +56,17 @@ Realistic samples live in [`test/fixtures/seerr/`](../test/fixtures/seerr/).
 
 - [x] **M1 – Harness**: project tooling, webhook endpoint with auth, payload parsing, message
       formatting (FR/EN), log-only notifier, Dockerfile, CI (checks + secret scan) and CD (GHCR).
-- [ ] **M2 – WhatsApp delivery (Baileys)**
-  - `BaileysNotifier` implementing `Notifier`; auth state in `DATA_DIR`.
+- [x] **M2 – WhatsApp delivery (Baileys)**
+  - `BaileysNotifier` implementing `Notifier`; auth state in `DATA_DIR/auth`.
   - QR code rendered in the logs; pairing code when `WHATSAPP_PAIRING_PHONE` is set.
-  - Reconnect with exponential backoff; on `loggedOut`, wipe the session and ask to re-pair.
-  - Send poster as image with caption; fall back to text-only if the image download fails.
+  - Reconnect with exponential backoff (1 s → 60 s); on `loggedOut`/`multideviceMismatch`, wipe
+    the session and ask to re-pair; stop on `connectionReplaced`/`forbidden`.
+  - Poster downloaded by whatseerr (10 s timeout, 5 MB cap) and sent as image with caption; falls
+    back to text-only if the download fails.
+  - A webhook waits up to 30 s for WhatsApp to (re)connect, then answers `502`.
   - `/readyz` reflecting the WhatsApp connection state (`/healthz` stays process liveness).
-  - Pin the Baileys version exactly (the v7 line is still in release-candidate).
+  - `DRY_RUN=true` logs messages instead of sending them.
+  - Baileys pinned exactly (`7.0.0-rc14`, the v7 line is still in release candidate).
 - [ ] **M3 – Group discovery**: when `WHATSAPP_GROUP_JID` is unset, log the groups the account
       belongs to (name + JID) once connected; also expose it as a CLI command
       (`docker exec whatseerr node dist/cli.js groups`).

@@ -27,13 +27,16 @@
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
+    "baileys": "7.0.0-rc14",
     "fastify": "^5.12.5",
     "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.3",
+    "@types/qrcode": "^1.5.6",
     "eslint": "^10.11.0",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",

@@ -20,6 +20,8 @@ const envSchema = z.object({
   HOST: optionalString(z.string()).default('0.0.0.0'),
   PORT: optionalString(z.coerce.number().int().min(1).max(65535)).default(8080),
   LOG_LEVEL: optionalString(z.enum(LOG_LEVELS)).default('info'),
+  WHATSAPP_LOG_LEVEL: optionalString(z.enum(LOG_LEVELS)).default('warn'),
+  DRY_RUN: optionalString(z.stringbool()).default(false),
   DATA_DIR: optionalString(z.string()).default('./data'),
 });
 
@@ -30,7 +32,11 @@ export interface Config {
   whatsapp: {
     groupJid: string | undefined;
     pairingPhone: string | undefined;
+    /** Log level of the Baileys library, kept apart because it is very verbose. */
+    logLevel: Env['LOG_LEVEL'];
   };
+  /** When true, messages are logged instead of being sent to WhatsApp. */
+  dryRun: boolean;
   language: Env['LANGUAGE'];
   host: string;
   port: number;
@@ -57,7 +63,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     whatsapp: {
       groupJid: e.WHATSAPP_GROUP_JID,
       pairingPhone: e.WHATSAPP_PAIRING_PHONE,
+      logLevel: e.WHATSAPP_LOG_LEVEL,
     },
+    dryRun: e.DRY_RUN,
     language: e.LANGUAGE,
     host: e.HOST,
     port: e.PORT,

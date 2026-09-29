@@ -4,8 +4,8 @@ Notifications from [Seerr](https://github.com/seerr-team/seerr) (Jellyseerr) str
 WhatsApp group: when a requested movie or series becomes available, whatseerr posts its poster,
 title, synopsis and requester to your group.
 
-> **Status: early development.** The webhook pipeline is in place; WhatsApp delivery (Baileys) is
-> the next milestone. See [docs/SPEC.md](docs/SPEC.md) for the roadmap.
+> **Status: early development.** Webhook handling and WhatsApp delivery work; group discovery and
+> robustness features are next. See [docs/SPEC.md](docs/SPEC.md) for the roadmap.
 
 > **Warning:** whatseerr uses [Baileys](https://github.com/WhiskeySockets/Baileys), an unofficial
 > WhatsApp Web client. Use a dedicated phone number: WhatsApp may ban accounts using unofficial
@@ -46,8 +46,28 @@ Use the **Test** button to check the connection: a test message is sent to the g
 | `PORT`                   | no       | `8080`  | HTTP port                                                    |
 | `LOG_LEVEL`              | no       | `info`  | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `DATA_DIR`               | no       | `/data` | WhatsApp session directory (keep it private)                 |
+| `WHATSAPP_LOG_LEVEL`     | no       | `warn`  | Log level of the Baileys WhatsApp library                    |
+| `DRY_RUN`                | no       | `false` | Log messages instead of sending them to WhatsApp             |
 
 \* Needed to deliver messages; can be left empty for the first start while pairing.
+
+## Pairing
+
+On first start, whatseerr prints a QR code in its logs (`docker compose logs -f whatseerr`).
+On the phone, open **WhatsApp → Linked devices → Link a device** and scan it. If scanning is
+impractical, set `WHATSAPP_PAIRING_PHONE` (e.g. `33612345678`): an 8-character code is printed
+instead, to enter under **Link with phone number**.
+
+The session is stored in the `/data` volume: keep it private, it grants access to the account.
+If the device is unlinked from the phone, whatseerr clears the session and shows a new QR code.
+
+## Endpoints
+
+| Endpoint        | Description                                                                       |
+| --------------- | --------------------------------------------------------------------------------- |
+| `POST /webhook` | Seerr webhook (requires `Authorization: Bearer <WEBHOOK_SECRET>`)                 |
+| `GET /healthz`  | Liveness: the process is up                                                       |
+| `GET /readyz`   | Readiness: `200` when WhatsApp is connected and a group is configured, else `503` |
 
 ## Development
 

@@ -27,6 +27,12 @@ export function buildServer(deps: ServerDeps) {
   // Silenced: the Docker healthcheck polls it every 30s.
   app.get('/healthz', { logLevel: 'silent' }, () => ({ status: 'ok' }));
 
+  // Readiness: 200 only when a notification would actually reach the WhatsApp group.
+  app.get('/readyz', { logLevel: 'silent' }, (_request, reply) => {
+    const status = deps.notifier.getStatus();
+    return reply.code(status.ready ? 200 : 503).send(status);
+  });
+
   app.post('/webhook', async (request, reply) => {
     if (!isAuthorized(request.headers.authorization, deps.webhookSecret)) {
       return reply.code(401).send({ error: 'unauthorized' });
