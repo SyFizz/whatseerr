@@ -1,0 +1,87 @@
+# whatseerr: product and technical specification
+
+Framing decisions taken with the project owner on 2026-09-29. Treat this file as the source of
+truth for scope; update it (in the same commit) whenever a decision changes.
+
+## Goal
+
+Post a message to **one WhatsApp group** whenever **Seerr** (formerly Jellyseerr/Overseerr) marks
+a requested movie or series as **available**.
+
+## Decisions
+
+| Topic              | Decision                                                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WhatsApp transport | [Baileys](https://github.com/WhiskeySockets/Baileys) embedded in the app (WhatsApp Web multi-device protocol). A **dedicated phone number** is recommended (unofficial API → ban risk). |
+| Stack              | TypeScript (strict, ESM) on Node.js 24 LTS · Fastify 5 · Zod 4 · Pino · Vitest                                                                                                          |
+| Triggering events  | `MEDIA_AVAILABLE` only. `TEST_NOTIFICATION` is also answered so the Seerr "Test" button works. Every other type is acknowledged (`202`) and ignored.                                    |
+| Message format     | TMDB poster image + caption: heading (movie / series), bold title with year, extras (e.g. requested seasons), italic overview (truncated), requester.                                   |
+| Target             | A single group, identified by its JID (`…@g.us`) in `WHATSAPP_GROUP_JID`.                                                                                                               |
+| Pairing            | QR code printed in the container logs (`docker logs`). Optional pairing-code flow via `WHATSAPP_PAIRING_PHONE`. Session persisted in the `/data` volume.                                |
+| Language           | i18n FR + EN, chosen with `LANGUAGE` (default `fr`).                                                                                                                                    |
+| Webhook security   | Seerr sends `Authorization: Bearer <WEBHOOK_SECRET>`; compared in constant time.                                                                                                        |
+| Distribution       | Docker image on GHCR (`ghcr.io/syfizz/whatseerr`), multi-arch `linux/amd64` + `linux/arm64`, built by GitHub Actions. Tags: `latest` (main), semver (git tags `vX.Y.Z`), short SHA.     |
+
+## Architecture
+
+```
+Seerr ──POST /webhook──▶ Fastify ──▶ Zod payload ──▶ formatNotification() ──▶ Notifier ──▶ WhatsApp group
+          (Bearer auth)   (http/)     (seerr/)        (notifications/ + i18n/)   (whatsapp/)
+```
+
+- `Notifier` is an interface; the HTTP layer never talks to Baileys directly. This keeps the
+  webhook path fully testable with a fake notifier.
+- WhatsApp session state (Baileys multi-file auth state) lives in `DATA_DIR` (`/data` in Docker).
+
+## Seerr webhook payload
+
+Seerr's Webhook agent renders a JSON template. With the default template every value is a
+**string**, and optional sections (`media`, `request`, `issue`, `comment`) are `null` when not
+relevant. Relevant fields:
+
+| Field                          | Example                                            |
+| ------------------------------ | -------------------------------------------------- |
+| `notification_type`            | `MEDIA_AVAILABLE`, `TEST_NOTIFICATION`, …          |
+| `subject`                      | `Inception (2010)`                                 |
+| `message`                      | Overview / synopsis                                |
+| `image`                        | TMDB poster URL                                    |
+| `media.media_type`             | `movie` or `tv`                                    |
+| `media.tmdbId`, `media.tvdbId` | `27205`                                            |
+| `request.requestedBy_username` | `alice`                                            |
+| `extra[]`                      | `{ "name": "Requested Seasons", "value": "1, 2" }` |
+
+Realistic samples live in [`test/fixtures/seerr/`](../test/fixtures/seerr/).
+
+## Milestones
+
+- [x] **M1 – Harness**: project tooling, webhook endpoint with auth, payload parsing, message
+      formatting (FR/EN), log-only notifier, Dockerfile, CI (checks + secret scan) and CD (GHCR).
+- [ ] **M2 – WhatsApp delivery (Baileys)**
+  - `BaileysNotifier` implementing `Notifier`; auth state in `DATA_DIR`.
+  - QR code rendered in the logs; pairing code when `WHATSAPP_PAIRING_PHONE` is set.
+  - Reconnect with exponential backoff; on `loggedOut`, wipe the session and ask to re-pair.
+  - Send poster as image with caption; fall back to text-only if the image download fails.
+  - `/readyz` reflecting the WhatsApp connection state (`/healthz` stays process liveness).
+  - Pin the Baileys version exactly (the v7 line is still in release-candidate).
+- [ ] **M3 – Group discovery**: when `WHATSAPP_GROUP_JID` is unset, log the groups the account
+      belongs to (name + JID) once connected; also expose it as a CLI command
+      (`docker exec whatseerr node dist/cli.js groups`).
+- [ ] **M4 – Robustness**: de-duplicate `MEDIA_AVAILABLE` for the same media within a time
+      window (series seasons trigger several events); queue and retry messages while WhatsApp is
+      disconnected; throttle outgoing messages.
+- [ ] **M5 – Release**: user documentation (Seerr setup, pairing walkthrough), first `v1.0.0`
+      tag.
+
+## Out of scope (for now)
+
+Other Seerr events (requests, approvals, issues), several groups or per-type routing, a web UI,
+the official WhatsApp Cloud API, sending to individual contacts.
+
+## Security constraints
+
+- The GitHub repository is **public**: no secret, session file, phone number, group JID or real
+  personal data may ever be committed (fixtures use fake data and `example.com`).
+- Configuration comes exclusively from environment variables (`.env` is git-ignored).
+- The `/data` volume grants full access to the WhatsApp account: never log or copy its content.
+- Logs must not contain the webhook secret, the `Authorization` header or requester emails.
+- The container runs as the unprivileged `node` user.
