@@ -8,8 +8,8 @@ Guidance for Claude Code when working in this repository.
 media becomes available. Scope, decisions and roadmap: [docs/SPEC.md](docs/SPEC.md). Read it
 before starting a feature, and update it in the same commit when a decision changes.
 
-Current status: milestones **M1 (harness)** and **M2 (WhatsApp delivery via Baileys)** done.
-Next: **M3** (group discovery). Check the milestone list in the spec before starting.
+Current status: milestones **M1** (harness), **M2** (WhatsApp delivery via Baileys) and **M3**
+(group discovery) done. Next: **M4** (robustness). Check the milestone list in the spec before starting.
 
 ## Non-negotiable rules
 
@@ -54,7 +54,7 @@ src/
   index.ts                 entrypoint: config → logger → notifier → server, graceful shutdown
   config.ts                env parsing with Zod (the only place reading process.env)
   logger.ts                pino with secret redaction
-  http/server.ts           Fastify app: GET /healthz, POST /webhook (Bearer auth)
+  http/server.ts           Fastify app: /healthz, /readyz, /groups and /webhook (Bearer auth)
   seerr/payload.ts         Zod schema of the Seerr webhook payload
   notifications/format.ts  pure payload → OutgoingMessage mapping
   i18n/index.ts            FR/EN message catalog
@@ -64,6 +64,7 @@ src/
   whatsapp/policy.ts       pure disconnect → action mapping and backoff
   whatsapp/socket.ts       real Baileys socket factory and auth-state storage
   whatsapp/image.ts        poster download (timeout, size cap)
+  whatsapp/groups.ts       group listing (GET /groups) and startup report
 test/
   *.test.ts                Vitest tests
   fixtures/seerr/*.json    realistic Seerr payloads (fake data)

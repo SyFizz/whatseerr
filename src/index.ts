@@ -5,12 +5,18 @@ import { getMessages } from './i18n/index.js';
 import { createLogger, type Logger } from './logger.js';
 import { BaileysNotifier } from './whatsapp/baileys-notifier.js';
 import { WhatsAppConnection } from './whatsapp/connection.js';
+import { listGroups, reportGroups, type GroupSummary } from './whatsapp/groups.js';
 import { LogNotifier, type Notifier } from './whatsapp/notifier.js';
 
-function createNotifier(config: Config, logger: Logger): Notifier {
+interface WhatsAppServices {
+  notifier: Notifier;
+  listGroups?: () => Promise<GroupSummary[]>;
+}
+
+function createWhatsAppServices(config: Config, logger: Logger): WhatsAppServices {
   if (config.dryRun) {
     logger.warn('DRY_RUN is enabled: messages are logged, not sent to WhatsApp');
-    return new LogNotifier(logger);
+    return { notifier: new LogNotifier(logger) };
   }
   if (!config.whatsapp.groupJid) {
     logger.warn('WHATSAPP_GROUP_JID is not set: notifications cannot be delivered yet');
@@ -22,20 +28,31 @@ function createNotifier(config: Config, logger: Logger): Notifier {
     logger: logger.child({ module: 'whatsapp' }),
     baileysLogger: logger.child({ module: 'baileys' }, { level: config.whatsapp.logLevel }),
   });
+  connection.onOpen((socket) =>
+    reportGroups(socket, {
+      groupJid: config.whatsapp.groupJid,
+      logger,
+      print: (text) => process.stdout.write(text),
+    }),
+  );
   connection.start();
 
-  return new BaileysNotifier({ connection, groupJid: config.whatsapp.groupJid, logger });
+  return {
+    notifier: new BaileysNotifier({ connection, groupJid: config.whatsapp.groupJid, logger }),
+    listGroups: async () => listGroups(await connection.waitUntilOpen(10_000)),
+  };
 }
 
 async function main(): Promise<void> {
   const config = loadConfig();
   const logger = createLogger(config.logLevel);
 
-  const notifier = createNotifier(config, logger);
+  const { notifier, listGroups } = createWhatsAppServices(config, logger);
   const server = buildServer({
     webhookSecret: config.webhookSecret,
     messages: getMessages(config.language),
     notifier,
+    listGroups,
     logger,
   });
 

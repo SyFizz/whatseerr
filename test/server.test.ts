@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildServer, isAuthorized, type App } from '../src/http/server.js';
 import { getMessages } from '../src/i18n/index.js';
 import { createLogger } from '../src/logger.js';
+import type { GroupSummary } from '../src/whatsapp/groups.js';
 import type { Notifier } from '../src/whatsapp/notifier.js';
 import { loadSeerrFixture } from './fixtures/index.js';
 
@@ -21,11 +22,16 @@ describe('HTTP server', () => {
   let app: App;
   let send: ReturnType<typeof vi.fn<Notifier['send']>>;
   let getStatus: ReturnType<typeof vi.fn<Notifier['getStatus']>>;
+  let listGroups: ReturnType<typeof vi.fn<() => Promise<GroupSummary[]>>>;
 
   beforeEach(() => {
     send = vi.fn<Notifier['send']>().mockResolvedValue(undefined);
     getStatus = vi.fn<Notifier['getStatus']>().mockReturnValue({ ready: true, state: 'open' });
+    listGroups = vi
+      .fn<() => Promise<GroupSummary[]>>()
+      .mockResolvedValue([{ jid: '111-111@g.us', name: 'Movie night', participants: 12 }]);
     app = buildServer({
+      listGroups,
       webhookSecret: SECRET,
       messages: getMessages('fr'),
       notifier: { send, getStatus, close: () => Promise.resolve() },
@@ -51,6 +57,40 @@ describe('HTTP server', () => {
     const notReady = await app.inject({ method: 'GET', url: '/readyz' });
     expect(notReady.statusCode).toBe(503);
     expect(notReady.json()).toEqual({ ready: false, state: 'waiting-for-pairing' });
+  });
+
+  describe('GET /groups', () => {
+    it('requires the secret', async () => {
+      const res = await app.inject({ method: 'GET', url: '/groups' });
+      expect(res.statusCode).toBe(401);
+      expect(listGroups).not.toHaveBeenCalled();
+    });
+
+    it('lists the WhatsApp groups', async () => {
+      const res = await app.inject({ method: 'GET', url: '/groups', headers: AUTH });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        groups: [{ jid: '111-111@g.us', name: 'Movie night', participants: 12 }],
+      });
+    });
+
+    it('answers 503 while WhatsApp is unavailable', async () => {
+      listGroups.mockRejectedValueOnce(new Error('not connected'));
+      const res = await app.inject({ method: 'GET', url: '/groups', headers: AUTH });
+      expect(res.statusCode).toBe(503);
+    });
+
+    it('answers 404 in dry-run mode', async () => {
+      const dryRun = buildServer({
+        webhookSecret: SECRET,
+        messages: getMessages('fr'),
+        notifier: { send, getStatus, close: () => Promise.resolve() },
+        logger: createLogger('silent'),
+      });
+      const res = await dryRun.inject({ method: 'GET', url: '/groups', headers: AUTH });
+      expect(res.statusCode).toBe(404);
+      await dryRun.close();
+    });
   });
 
   it('rejects unauthenticated webhooks', async () => {

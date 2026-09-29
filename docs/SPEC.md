@@ -67,9 +67,11 @@ Realistic samples live in [`test/fixtures/seerr/`](../test/fixtures/seerr/).
   - `/readyz` reflecting the WhatsApp connection state (`/healthz` stays process liveness).
   - `DRY_RUN=true` logs messages instead of sending them.
   - Baileys pinned exactly (`7.0.0-rc14`, the v7 line is still in release candidate).
-- [ ] **M3 – Group discovery**: when `WHATSAPP_GROUP_JID` is unset, log the groups the account
-      belongs to (name + JID) once connected; also expose it as a CLI command
-      (`docker exec whatseerr node dist/cli.js groups`).
+- [x] **M3 – Group discovery**: when `WHATSAPP_GROUP_JID` is unset, print the groups the account
+      belongs to (JID, name, members) once connected; when it is set, warn if the account is not a
+      member. `GET /groups` (same Bearer secret as the webhook) returns the list as JSON.
+      _Changed from the initial CLI idea: a CLI would open a second socket with the same session,
+      and WhatsApp would disconnect the running server (`connectionReplaced`)._
 - [ ] **M4 – Robustness**: de-duplicate `MEDIA_AVAILABLE` for the same media within a time
       window (series seasons trigger several events); queue and retry messages while WhatsApp is
       disconnected; throttle outgoing messages.

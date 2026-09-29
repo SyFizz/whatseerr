@@ -1,9 +1,10 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import Fastify from 'fastify';
+import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import type { Messages } from '../i18n/index.js';
 import type { Logger } from '../logger.js';
 import { formatNotification } from '../notifications/format.js';
 import { seerrPayloadSchema } from '../seerr/payload.js';
+import type { GroupSummary } from '../whatsapp/groups.js';
 import type { Notifier } from '../whatsapp/notifier.js';
 
 export interface ServerDeps {
@@ -11,6 +12,8 @@ export interface ServerDeps {
   messages: Messages;
   notifier: Notifier;
   logger: Logger;
+  /** Lists the WhatsApp groups of the paired account; absent in dry-run mode. */
+  listGroups?: (() => Promise<GroupSummary[]>) | undefined;
 }
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest();
@@ -24,6 +27,12 @@ export function isAuthorized(header: string | undefined, secret: string): boolea
 export function buildServer(deps: ServerDeps) {
   const app = Fastify({ loggerInstance: deps.logger, bodyLimit: 256 * 1024 });
 
+  const requireSecret = async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!isAuthorized(request.headers.authorization, deps.webhookSecret)) {
+      await reply.code(401).send({ error: 'unauthorized' });
+    }
+  };
+
   // Silenced: the Docker healthcheck polls it every 30s.
   app.get('/healthz', { logLevel: 'silent' }, () => ({ status: 'ok' }));
 
@@ -33,11 +42,20 @@ export function buildServer(deps: ServerDeps) {
     return reply.code(status.ready ? 200 : 503).send(status);
   });
 
-  app.post('/webhook', async (request, reply) => {
-    if (!isAuthorized(request.headers.authorization, deps.webhookSecret)) {
-      return reply.code(401).send({ error: 'unauthorized' });
+  // Group names are private: protected by the same secret as the webhook.
+  app.get('/groups', { preHandler: requireSecret }, async (request, reply) => {
+    if (!deps.listGroups) {
+      return reply.code(404).send({ error: 'not available in dry-run mode' });
     }
+    try {
+      return { groups: await deps.listGroups() };
+    } catch (error) {
+      request.log.warn({ err: error }, 'Failed to list WhatsApp groups');
+      return reply.code(503).send({ error: 'whatsapp unavailable' });
+    }
+  });
 
+  app.post('/webhook', { preHandler: requireSecret }, async (request, reply) => {
     const parsed = seerrPayloadSchema.safeParse(request.body);
     if (!parsed.success) {
       request.log.warn({ issues: parsed.error.issues }, 'Invalid Seerr payload');

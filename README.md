@@ -61,12 +61,31 @@ instead, to enter under **Link with phone number**.
 The session is stored in the `/data` volume: keep it private, it grants access to the account.
 If the device is unlinked from the phone, whatseerr clears the session and shows a new QR code.
 
+## Finding the group JID
+
+Add the paired WhatsApp account to the target group. Once connected without
+`WHATSAPP_GROUP_JID`, whatseerr prints the groups of the account in its logs:
+
+```text
+WhatsApp groups of this account. Set WHATSAPP_GROUP_JID to the target one and restart:
+  120363012345678901@g.us  Movie night (12 members)
+```
+
+The same list is available at any time as JSON:
+
+```bash
+curl -H "Authorization: Bearer $WEBHOOK_SECRET" http://localhost:8080/groups
+```
+
+Copy the JID into `.env` and restart the container.
+
 ## Endpoints
 
 | Endpoint        | Description                                                                       |
 | --------------- | --------------------------------------------------------------------------------- |
 | `POST /webhook` | Seerr webhook (requires `Authorization: Bearer <WEBHOOK_SECRET>`)                 |
 | `GET /healthz`  | Liveness: the process is up                                                       |
+| `GET /groups`   | WhatsApp groups of the account (requires the Bearer secret)                       |
 | `GET /readyz`   | Readiness: `200` when WhatsApp is connected and a group is configured, else `503` |
 
 ## Development
