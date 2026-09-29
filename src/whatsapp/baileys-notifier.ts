@@ -1,9 +1,9 @@
 import type { AnyMessageContent, WASocket } from 'baileys';
 import type { Logger } from '../logger.js';
 import type { OutgoingMessage } from '../notifications/format.js';
-import type { ConnectionStatus } from './connection.js';
+import { WhatsAppUnavailableError, type ConnectionStatus } from './connection.js';
 import { fetchImage } from './image.js';
-import type { Notifier, NotifierStatus } from './notifier.js';
+import { NotifierUnavailableError, type Notifier, type NotifierStatus } from './notifier.js';
 
 /** The part of `WhatsAppConnection` the notifier relies on. */
 export interface ConnectionLike {
@@ -17,26 +17,62 @@ export interface BaileysNotifierOptions {
   groupJid: string | undefined;
   logger: Logger;
   fetchImage?: (url: string) => Promise<Buffer>;
-  /** How long a webhook waits for WhatsApp to (re)connect before failing. */
+  /** How long a webhook waits for WhatsApp to reconnect before failing. */
   connectTimeoutMs?: number;
+  /** How long a webhook waits for WhatsApp to accept the message before failing. */
+  sendTimeoutMs?: number;
 }
 
+/** States where waiting is pointless: a human must act (pair the device, fix the session). */
+const HOPELESS_STATES: readonly ConnectionStatus[] = ['waiting-for-pairing', 'stopped'];
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
+/**
+ * Seerr sends webhooks without any timeout, so every path here is bounded:
+ * a request must never hang the Seerr UI.
+ */
 export class BaileysNotifier implements Notifier {
   private readonly fetchImage: (url: string) => Promise<Buffer>;
   private readonly connectTimeoutMs: number;
+  private readonly sendTimeoutMs: number;
 
   constructor(private readonly options: BaileysNotifierOptions) {
     this.fetchImage = options.fetchImage ?? ((url) => fetchImage(url));
-    this.connectTimeoutMs = options.connectTimeoutMs ?? 30_000;
+    this.connectTimeoutMs = options.connectTimeoutMs ?? 10_000;
+    this.sendTimeoutMs = options.sendTimeoutMs ?? 20_000;
   }
 
   async send(message: OutgoingMessage): Promise<void> {
-    const { groupJid, connection } = this.options;
-    if (!groupJid) throw new Error('WHATSAPP_GROUP_JID is not configured');
+    const { groupJid, connection, logger } = this.options;
+    if (!groupJid) {
+      throw new NotifierUnavailableError(
+        'missing-group-jid',
+        'WHATSAPP_GROUP_JID is not configured',
+      );
+    }
+    if (HOPELESS_STATES.includes(connection.status)) {
+      throw new WhatsAppUnavailableError(connection.status);
+    }
 
     const socket = await connection.waitUntilOpen(this.connectTimeoutMs);
-    await socket.sendMessage(groupJid, await this.buildContent(message));
-    this.options.logger.info('WhatsApp message sent');
+    const content = await this.buildContent(message);
+    await withTimeout(
+      socket.sendMessage(groupJid, content),
+      this.sendTimeoutMs,
+      `WhatsApp did not accept the message within ${this.sendTimeoutMs} ms`,
+    );
+    logger.info('WhatsApp message sent');
   }
 
   getStatus(): NotifierStatus {

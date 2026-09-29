@@ -63,7 +63,9 @@ Realistic samples live in [`test/fixtures/seerr/`](../test/fixtures/seerr/).
     the session and ask to re-pair; stop on `connectionReplaced`/`forbidden`.
   - Poster downloaded by whatseerr (10 s timeout, 5 MB cap) and sent as image with caption; falls
     back to text-only if the download fails.
-  - A webhook waits up to 30 s for WhatsApp to (re)connect, then answers `502`.
+  - Seerr posts webhooks without any timeout, so every webhook is bounded: it fails at once with
+    `503` while pairing is pending or the connection is stopped, waits at most 10 s for a
+    reconnection (`503`), and at most 20 s for WhatsApp to accept the message (`502`).
   - `/readyz` reflecting the WhatsApp connection state (`/healthz` stays process liveness).
   - `DRY_RUN=true` logs messages instead of sending them.
   - Baileys pinned exactly (`7.0.0-rc14`, the v7 line is still in release candidate).

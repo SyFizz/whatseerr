@@ -5,7 +5,7 @@ import type { Logger } from '../logger.js';
 import { formatNotification } from '../notifications/format.js';
 import { seerrPayloadSchema } from '../seerr/payload.js';
 import type { GroupSummary } from '../whatsapp/groups.js';
-import type { Notifier } from '../whatsapp/notifier.js';
+import { NotifierUnavailableError, type Notifier } from '../whatsapp/notifier.js';
 
 export interface ServerDeps {
   webhookSecret: string;
@@ -71,6 +71,10 @@ export function buildServer(deps: ServerDeps) {
     try {
       await deps.notifier.send(message);
     } catch (error) {
+      if (error instanceof NotifierUnavailableError) {
+        request.log.warn({ state: error.state }, `WhatsApp message not sent: ${error.message}`);
+        return reply.code(503).send({ error: 'whatsapp unavailable', state: error.state });
+      }
       request.log.error({ err: error }, 'Failed to deliver WhatsApp message');
       return reply.code(502).send({ error: 'delivery failed' });
     }

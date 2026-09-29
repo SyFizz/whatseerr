@@ -100,6 +100,9 @@ docs/SPEC.md               scope, decisions, milestones
 - Webhook agent: Settings → Notifications → Webhook. URL `http://whatseerr:8080/webhook`,
   "Authorization Header" `Bearer <WEBHOOK_SECRET>`, default JSON payload, enable "Media Available".
 - All templated values are strings; `media`, `request`, `extra` can be `null`.
+- Seerr posts webhooks with axios **without timeout**: a slow `/webhook` freezes the Seerr UI
+  ("Sending test notification…"). Every await on the webhook path must be bounded; fail fast with
+  `NotifierUnavailableError` (→ `503`) when a human action is needed (pairing, missing JID).
 - The "Test" button sends `TEST_NOTIFICATION`, which is forwarded as a test message on purpose.
 
 ## Baileys notes

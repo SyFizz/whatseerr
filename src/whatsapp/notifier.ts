@@ -8,6 +8,18 @@ export interface NotifierStatus {
   state: string;
 }
 
+/** Delivery is impossible right now (not paired, disconnected, not configured…); retrying immediately is pointless. */
+export class NotifierUnavailableError extends Error {
+  override name = 'NotifierUnavailableError';
+
+  constructor(
+    readonly state: string,
+    message = `Notifications cannot be delivered right now (state: ${state})`,
+  ) {
+    super(message);
+  }
+}
+
 /** Delivers a formatted message to the configured WhatsApp group. */
 export interface Notifier {
   send(message: OutgoingMessage): Promise<void>;

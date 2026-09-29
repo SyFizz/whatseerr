@@ -1,6 +1,7 @@
 import type { ConnectionState, WASocket } from 'baileys';
 import QRCode from 'qrcode';
 import type { Logger } from '../logger.js';
+import { NotifierUnavailableError } from './notifier.js';
 import { backoffDelay, disconnectAction, statusCodeOf } from './policy.js';
 import {
   clearAuthStore,
@@ -13,11 +14,11 @@ import {
 export type ConnectionStatus =
   'connecting' | 'waiting-for-pairing' | 'open' | 'reconnecting' | 'stopped';
 
-export class WhatsAppUnavailableError extends Error {
-  override readonly name = 'WhatsAppUnavailableError';
+export class WhatsAppUnavailableError extends NotifierUnavailableError {
+  override name = 'WhatsAppUnavailableError';
 
-  constructor(readonly status: ConnectionStatus) {
-    super(`WhatsApp is not connected (status: ${status})`);
+  constructor(status: ConnectionStatus) {
+    super(status, `WhatsApp is not connected (status: ${status})`);
   }
 }
 

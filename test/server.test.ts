@@ -3,7 +3,7 @@ import { buildServer, isAuthorized, type App } from '../src/http/server.js';
 import { getMessages } from '../src/i18n/index.js';
 import { createLogger } from '../src/logger.js';
 import type { GroupSummary } from '../src/whatsapp/groups.js';
-import type { Notifier } from '../src/whatsapp/notifier.js';
+import { NotifierUnavailableError, type Notifier } from '../src/whatsapp/notifier.js';
 import { loadSeerrFixture } from './fixtures/index.js';
 
 const SECRET = 'a-very-long-test-secret';
@@ -145,5 +145,17 @@ describe('HTTP server', () => {
       payload: loadSeerrFixture('test-notification') as object,
     });
     expect(res.statusCode).toBe(502);
+  });
+
+  it('returns 503 with the state when WhatsApp is unavailable', async () => {
+    send.mockRejectedValueOnce(new NotifierUnavailableError('waiting-for-pairing'));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: AUTH,
+      payload: loadSeerrFixture('test-notification') as object,
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ error: 'whatsapp unavailable', state: 'waiting-for-pairing' });
   });
 });
