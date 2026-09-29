@@ -35,6 +35,28 @@ describe('loadConfig', () => {
     expect(config.port).toBe(3000);
   });
 
+  it('converts delivery settings to milliseconds', () => {
+    expect(loadConfig({ WEBHOOK_SECRET: SECRET }).delivery).toEqual({
+      dedupWindowMs: 6 * 3_600_000,
+      maxAgeMs: 24 * 3_600_000,
+      sendIntervalMs: 5_000,
+    });
+    const custom = loadConfig({
+      WEBHOOK_SECRET: SECRET,
+      DEDUP_WINDOW_MINUTES: '0',
+      QUEUE_MAX_AGE_HOURS: '1.5',
+      SEND_INTERVAL_SECONDS: '2',
+    });
+    expect(custom.delivery).toEqual({
+      dedupWindowMs: 0,
+      maxAgeMs: 5_400_000,
+      sendIntervalMs: 2_000,
+    });
+    expect(() => loadConfig({ WEBHOOK_SECRET: SECRET, QUEUE_MAX_AGE_HOURS: '0' })).toThrow(
+      /QUEUE_MAX_AGE_HOURS/,
+    );
+  });
+
   it('rejects a missing or short secret', () => {
     expect(() => loadConfig({})).toThrow(ConfigError);
     expect(() => loadConfig({ WEBHOOK_SECRET: 'short' })).toThrow(/WEBHOOK_SECRET/);

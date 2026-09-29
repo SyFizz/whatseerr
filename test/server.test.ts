@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildServer, isAuthorized, type App } from '../src/http/server.js';
 import { getMessages } from '../src/i18n/index.js';
 import { createLogger } from '../src/logger.js';
+import type { OutboxLike } from '../src/notifications/outbox.js';
 import type { GroupSummary } from '../src/whatsapp/groups.js';
 import { NotifierUnavailableError, type Notifier } from '../src/whatsapp/notifier.js';
 import { loadSeerrFixture } from './fixtures/index.js';
@@ -23,10 +24,14 @@ describe('HTTP server', () => {
   let send: ReturnType<typeof vi.fn<Notifier['send']>>;
   let getStatus: ReturnType<typeof vi.fn<Notifier['getStatus']>>;
   let listGroups: ReturnType<typeof vi.fn<() => Promise<GroupSummary[]>>>;
+  let enqueue: ReturnType<typeof vi.fn<OutboxLike['enqueue']>>;
+  let outbox: OutboxLike;
 
   beforeEach(() => {
     send = vi.fn<Notifier['send']>().mockResolvedValue(undefined);
     getStatus = vi.fn<Notifier['getStatus']>().mockReturnValue({ ready: true, state: 'open' });
+    enqueue = vi.fn<OutboxLike['enqueue']>().mockResolvedValue('queued');
+    outbox = { enqueue, size: 0 };
     listGroups = vi
       .fn<() => Promise<GroupSummary[]>>()
       .mockResolvedValue([{ jid: '111-111@g.us', name: 'Movie night', participants: 12 }]);
@@ -35,6 +40,7 @@ describe('HTTP server', () => {
       webhookSecret: SECRET,
       messages: getMessages('fr'),
       notifier: { send, getStatus, close: () => Promise.resolve() },
+      outbox,
       logger: createLogger('silent'),
     });
   });
@@ -56,7 +62,7 @@ describe('HTTP server', () => {
     getStatus.mockReturnValue({ ready: false, state: 'waiting-for-pairing' });
     const notReady = await app.inject({ method: 'GET', url: '/readyz' });
     expect(notReady.statusCode).toBe(503);
-    expect(notReady.json()).toEqual({ ready: false, state: 'waiting-for-pairing' });
+    expect(notReady.json()).toEqual({ ready: false, state: 'waiting-for-pairing', queued: 0 });
   });
 
   describe('GET /groups', () => {
@@ -85,6 +91,7 @@ describe('HTTP server', () => {
         webhookSecret: SECRET,
         messages: getMessages('fr'),
         notifier: { send, getStatus, close: () => Promise.resolve() },
+        outbox,
         logger: createLogger('silent'),
       });
       const res = await dryRun.inject({ method: 'GET', url: '/groups', headers: AUTH });
@@ -113,16 +120,43 @@ describe('HTTP server', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('forwards MEDIA_AVAILABLE to the notifier', async () => {
+  it('queues MEDIA_AVAILABLE with its dedup key', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/webhook',
       headers: AUTH,
       payload: loadSeerrFixture('media-available-movie') as object,
     });
+    expect(res.statusCode).toBe(202);
+    expect(res.json()).toEqual({ status: 'queued' });
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(enqueue.mock.calls[0]?.[0].text).toContain('Inception');
+    expect(enqueue.mock.calls[0]?.[1]).toBe('movie:tmdb:27205');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('reports duplicates', async () => {
+    enqueue.mockResolvedValueOnce('duplicate');
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: AUTH,
+      payload: loadSeerrFixture('media-available-tv') as object,
+    });
+    expect(res.statusCode).toBe(202);
+    expect(res.json()).toEqual({ status: 'duplicate' });
+  });
+
+  it('sends the test notification directly', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhook',
+      headers: AUTH,
+      payload: loadSeerrFixture('test-notification') as object,
+    });
     expect(res.statusCode).toBe(200);
     expect(send).toHaveBeenCalledOnce();
-    expect(send.mock.calls[0]?.[0].text).toContain('Inception');
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('acknowledges but ignores other notification types', async () => {
@@ -133,7 +167,9 @@ describe('HTTP server', () => {
       payload: loadSeerrFixture('media-pending') as object,
     });
     expect(res.statusCode).toBe(202);
+    expect(res.json()).toEqual({ status: 'ignored' });
     expect(send).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it('returns 502 when delivery fails', async () => {

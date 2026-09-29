@@ -4,7 +4,7 @@ import { NotificationType, type SeerrPayload } from '../seerr/payload.js';
 export interface OutgoingMessage {
   /** WhatsApp-flavoured markdown (`*bold*`, `_italic_`). Used as the image caption when an image is set. */
   text: string;
-  imageUrl?: string;
+  imageUrl?: string | undefined;
 }
 
 const MAX_OVERVIEW_LENGTH = 400;

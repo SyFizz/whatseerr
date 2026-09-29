@@ -23,6 +23,9 @@ const envSchema = z.object({
   WHATSAPP_LOG_LEVEL: optionalString(z.enum(LOG_LEVELS)).default('warn'),
   DRY_RUN: optionalString(z.stringbool()).default(false),
   DATA_DIR: optionalString(z.string()).default('./data'),
+  DEDUP_WINDOW_MINUTES: optionalString(z.coerce.number().min(0)).default(360),
+  QUEUE_MAX_AGE_HOURS: optionalString(z.coerce.number().positive()).default(24),
+  SEND_INTERVAL_SECONDS: optionalString(z.coerce.number().min(0)).default(5),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -42,6 +45,14 @@ export interface Config {
   port: number;
   logLevel: Env['LOG_LEVEL'];
   dataDir: string;
+  delivery: {
+    /** Same media announced again within this window is dropped (0 disables). */
+    dedupWindowMs: number;
+    /** Queued messages older than this are dropped. */
+    maxAgeMs: number;
+    /** Minimum delay between two WhatsApp messages. */
+    sendIntervalMs: number;
+  };
 }
 
 export class ConfigError extends Error {
@@ -71,5 +82,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: e.PORT,
     logLevel: e.LOG_LEVEL,
     dataDir: e.DATA_DIR,
+    delivery: {
+      dedupWindowMs: e.DEDUP_WINDOW_MINUTES * 60_000,
+      maxAgeMs: e.QUEUE_MAX_AGE_HOURS * 3_600_000,
+      sendIntervalMs: e.SEND_INTERVAL_SECONDS * 1_000,
+    },
   };
 }

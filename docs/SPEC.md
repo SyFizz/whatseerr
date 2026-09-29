@@ -74,9 +74,17 @@ Realistic samples live in [`test/fixtures/seerr/`](../test/fixtures/seerr/).
       member. `GET /groups` (same Bearer secret as the webhook) returns the list as JSON.
       _Changed from the initial CLI idea: a CLI would open a second socket with the same session,
       and WhatsApp would disconnect the running server (`connectionReplaced`)._
-- [ ] **M4 – Robustness**: de-duplicate `MEDIA_AVAILABLE` for the same media within a time
-      window (series seasons trigger several events); queue and retry messages while WhatsApp is
-      disconnected; throttle outgoing messages.
+- [x] **M4 – Robustness**
+  - Durable outbox (`DATA_DIR/outbox.json`, atomic writes): `MEDIA_AVAILABLE` is persisted, then
+    acknowledged with `202`. Seerr never retries webhooks, so this is the only way not to lose a
+    notification received while WhatsApp is down or the container restarts.
+  - Delivery one at a time, `SEND_INTERVAL_SECONDS` apart (default 5 s); retries with backoff
+    (5 s → 60 s), immediately when WhatsApp reconnects; dropped after `QUEUE_MAX_AGE_HOURS`
+    (default 24 h); at most 100 queued messages.
+  - De-duplication by media (`media_type` + TMDB id, title as fallback), ignoring 4K and seasons:
+    Seerr sends one `MEDIA_AVAILABLE` per request. Window `DEDUP_WINDOW_MINUTES` (default 6 h),
+    persisted with the queue.
+  - `TEST_NOTIFICATION` bypasses the queue so the Seerr Test button reflects WhatsApp health.
 - [ ] **M5 – Release**: user documentation (Seerr setup, pairing walkthrough), first `v1.0.0`
       tag.
 

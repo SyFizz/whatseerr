@@ -8,8 +8,8 @@ Guidance for Claude Code when working in this repository.
 media becomes available. Scope, decisions and roadmap: [docs/SPEC.md](docs/SPEC.md). Read it
 before starting a feature, and update it in the same commit when a decision changes.
 
-Current status: milestones **M1** (harness), **M2** (WhatsApp delivery via Baileys) and **M3**
-(group discovery) done. Next: **M4** (robustness). Check the milestone list in the spec before starting.
+Current status: milestones **M1** (harness), **M2** (WhatsApp delivery via Baileys), **M3**
+(group discovery) and **M4** (durable queue, dedup, throttling) done. Next: **M5** (release). Check the milestone list in the spec before starting.
 
 ## Non-negotiable rules
 
@@ -57,6 +57,9 @@ src/
   http/server.ts           Fastify app: /healthz, /readyz, /groups and /webhook (Bearer auth)
   seerr/payload.ts         Zod schema of the Seerr webhook payload
   notifications/format.ts  pure payload → OutgoingMessage mapping
+  notifications/dedup.ts   media identity used to drop repeated MEDIA_AVAILABLE
+  notifications/outbox.ts  durable queue: persist, throttle, retry, expire
+  notifications/outbox-store.ts  outbox.json storage (Zod-validated, atomic writes)
   i18n/index.ts            FR/EN message catalog
   whatsapp/notifier.ts     Notifier interface + LogNotifier (DRY_RUN)
   whatsapp/baileys-notifier.ts  sends to the group through the connection (poster or text)
@@ -104,6 +107,10 @@ docs/SPEC.md               scope, decisions, milestones
   ("Sending test notification…"). Every await on the webhook path must be bounded; fail fast with
   `NotifierUnavailableError` (→ `503`) when a human action is needed (pairing, missing JID).
 - The "Test" button sends `TEST_NOTIFICATION`, which is forwarded as a test message on purpose.
+  It is sent synchronously; every other forwarded type goes through the `Outbox` (persisted, then
+  `202`), because Seerr never retries a webhook.
+- Seerr emits one `MEDIA_AVAILABLE` per **request** (HD + 4K, season-by-season requests): keep
+  the dedup key media-level (`dedupKey()`).
 
 ## Baileys notes
 

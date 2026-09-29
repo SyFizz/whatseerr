@@ -2,8 +2,10 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import type { Messages } from '../i18n/index.js';
 import type { Logger } from '../logger.js';
+import { dedupKey } from '../notifications/dedup.js';
 import { formatNotification } from '../notifications/format.js';
-import { seerrPayloadSchema } from '../seerr/payload.js';
+import type { OutboxLike } from '../notifications/outbox.js';
+import { NotificationType, seerrPayloadSchema } from '../seerr/payload.js';
 import type { GroupSummary } from '../whatsapp/groups.js';
 import { NotifierUnavailableError, type Notifier } from '../whatsapp/notifier.js';
 
@@ -11,6 +13,8 @@ export interface ServerDeps {
   webhookSecret: string;
   messages: Messages;
   notifier: Notifier;
+  /** Durable queue used for media notifications. */
+  outbox: OutboxLike;
   logger: Logger;
   /** Lists the WhatsApp groups of the paired account; absent in dry-run mode. */
   listGroups?: (() => Promise<GroupSummary[]>) | undefined;
@@ -39,7 +43,7 @@ export function buildServer(deps: ServerDeps) {
   // Readiness: 200 only when a notification would actually reach the WhatsApp group.
   app.get('/readyz', { logLevel: 'silent' }, (_request, reply) => {
     const status = deps.notifier.getStatus();
-    return reply.code(status.ready ? 200 : 503).send(status);
+    return reply.code(status.ready ? 200 : 503).send({ ...status, queued: deps.outbox.size });
   });
 
   // Group names are private: protected by the same secret as the webhook.
@@ -68,6 +72,13 @@ export function buildServer(deps: ServerDeps) {
       return reply.code(202).send({ status: 'ignored' });
     }
 
+    // Media notifications are queued: Seerr never retries, so they must survive a WhatsApp outage.
+    if (parsed.data.notification_type !== NotificationType.TestNotification) {
+      const status = await deps.outbox.enqueue(message, dedupKey(parsed.data));
+      return reply.code(202).send({ status });
+    }
+
+    // The Seerr "Test" button is sent directly, so that it reports whether WhatsApp works.
     try {
       await deps.notifier.send(message);
     } catch (error) {
