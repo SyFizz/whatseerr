@@ -1,0 +1,24 @@
+# Dependencies & build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets - NEVER commit these
+.env
+.env.*
+!.env.example
+
+# WhatsApp session (Baileys auth state = full account access)
+data/
+auth_info*/
+*.session.json
+
+# Logs & OS noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Local Claude Code settings
+.claude/settings.local.json
