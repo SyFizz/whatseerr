@@ -1,6 +1,6 @@
 {
   "name": "whatseerr",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Send Seerr (Jellyseerr) media notifications to a WhatsApp group",
   "license": "GPL-3.0-only",
   "private": true,
